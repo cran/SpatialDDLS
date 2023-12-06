@@ -58,13 +58,16 @@ SDDLS <- createSpatialDDLSobject(
   sc.data = sce,
   sc.cell.ID.column = "Cell_ID",
   sc.gene.ID.column = "Gene_ID",
-  project = "Simul_example"
+  project = "Simul_example",
+  sc.filt.genes.cluster = FALSE
 )
 SDDLS <- genMixedCellProp(
   object = SDDLS,
   cell.ID.column = "Cell_ID",
   cell.type.column = "Cell_Type",
-  num.sim.spots = 10,
+  num.sim.spots = 10, 
+  train.freq.cells = 2/3,
+  train.freq.spots = 2/3,
   verbose = TRUE
 )
 showProbPlot(

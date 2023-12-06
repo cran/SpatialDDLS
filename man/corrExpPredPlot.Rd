@@ -77,13 +77,12 @@ A ggplot object.
 }
 \description{
 Generate correlation plots between predicted and expected cell type
-proportions of test data. Correlation plots can be shown all mixed or split
-by cell type (\code{CellType}) or the number of different cell types present
-in the spots (\code{nCellTypes}).
+proportions of test data. Correlation plots can be shown all mixed or either
+split by cell type (\code{CellType}) or the number of different cell types
+present in the spots (\code{nCellTypes}).
 }
 \examples{
 \donttest{
-set.seed(123)
 set.seed(123)
 sce <- SingleCellExperiment::SingleCellExperiment(
   assays = list(
@@ -105,12 +104,15 @@ SDDLS <- createSpatialDDLSobject(
   sc.data = sce,
   sc.cell.ID.column = "Cell_ID",
   sc.gene.ID.column = "Gene_ID",
+  sc.filt.genes.cluster = FALSE
 )
 SDDLS <- genMixedCellProp(
   object = SDDLS,
   cell.ID.column = "Cell_ID",
   cell.type.column = "Cell_Type",
   num.sim.spots = 50,
+  train.freq.cells = 2/3,
+  train.freq.spots = 2/3,
   verbose = TRUE
 )
 SDDLS <- simMixedProfiles(SDDLS)

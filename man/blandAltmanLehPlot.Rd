@@ -73,9 +73,9 @@ A ggplot object.
 \description{
 Generate Bland-Altman agreement plots between predicted and expected cell
 type proportions from test data. The Bland-Altman agreement plots can be
-shown all mixed or split by cell type (\code{CellType}) or the number of cell
-types present in spots (\code{nCellTypes}). See the \code{facet.by} argument
-and examples for more information.
+shown all mixed or split by either cell type (\code{CellType}) or the number
+of cell types present in spots (\code{nCellTypes}). See the \code{facet.by}
+argument and examples for more information.
 }
 \examples{
 \donttest{
@@ -100,12 +100,15 @@ SDDLS <- createSpatialDDLSobject(
   sc.data = sce,
   sc.cell.ID.column = "Cell_ID",
   sc.gene.ID.column = "Gene_ID",
+  sc.filt.genes.cluster = FALSE
 )
 SDDLS <- genMixedCellProp(
   object = SDDLS,
   cell.ID.column = "Cell_ID",
   cell.type.column = "Cell_Type",
   num.sim.spots = 50,
+  train.freq.cells = 2/3,
+  train.freq.spots = 2/3,
   verbose = TRUE
 )
 SDDLS <- simMixedProfiles(SDDLS)

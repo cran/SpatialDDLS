@@ -1,23 +1,20 @@
 #' @importFrom dplyr mutate as_tibble left_join inner_join filter
-#' @importFrom tidyr gather
-#' @importFrom RColorBrewer brewer.pal
 #' @importFrom ggpubr stat_cor
 #' @importFrom stats aggregate as.formula sd var
 #' @importFrom ggplot2 ggplot aes geom_point geom_violin geom_boxplot geom_line geom_abline geom_text geom_hline geom_errorbar geom_bar theme ggtitle element_text xlab ylab scale_color_manual scale_fill_manual scale_x_continuous scale_y_continuous guides guide_legend facet_wrap stat_smooth annotate stat_density_2d element_blank
 #' @importFrom rlang .data
 NULL
 
+## colors from RColorBrewer: no space for more dependencies... CRAN policy
 default.colors <- function() {
   colors <- c(
-    RColorBrewer::brewer.pal(12, "Paired"), 
-    "#d45b91", "#374738",
-    RColorBrewer::brewer.pal(12, "Set3"),
-    RColorBrewer::brewer.pal(8, "Pastel2"),
-    "#333333", "#5D5D5D",
-    "#888888", "#B3B3B3"
+    "#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", 
+    "#FF7F00", "#CAB2D6", "#6A3D9A", "#e3dc5b", "#B15928", "#d45b91", "#374738",
+    "#60c4b4", "#FFFFB3", "#BEBADA", "#FB8072", "#80B1D3", "#FDB462", "#B3DE69", 
+    "#FCCDE5", "#D9D9D9", "#BC80BD", "#CCEBC5", "#FFED6F",
+    "#B3E2CD", "#FDCDAC", "#CBD5E8", "#F4CAE4", "#E6F5C9", "#FFF2AE", "#F1E2CC", 
+    "#CCCCCC", "#333333", "#5D5D5D", "#888888", "#B3B3B3"
   )
-  colors[11] <- "#e3dc5b"
-  colors[15] <- "#60c4b4"
   return(colors)
 }
 
@@ -25,9 +22,9 @@ default.colors <- function() {
 ######################## Calculate evaluation metrics ##########################
 ################################################################################
 
-#' Calculate evaluation metrics of test mixed transcriptional profiles
+#' Calculate evaluation metrics on test mixed transcriptional profiles
 #'
-#' Calculate evaluation metrics of test mixed transcriptional profiles. By
+#' Calculate evaluation metrics on test mixed transcriptional profiles. By
 #' default, absolute error (\code{AbsErr}), proportional absolute error
 #' (\code{ppAbsErr}), squared error (\code{SqrErr}), and proportional squared
 #' error (\code{ppSqrErr}) are calculated for each test mixed profile. In
@@ -71,14 +68,22 @@ calculateEvalMetrics <- function(object) {
   tmd <- as_tibble(x = testProbsDeconv)
   tmd <- mutate(tmd, Sample = rownames(testProbsDeconv),
                 nCellTypes = factor(rowSums(testProbsDeconv > 0)))
-  tmd <- tmd %>% gather(key = "CellType", value = "Prob", 
-                        -.data[["Sample"]], -.data[["nCellTypes"]])
+  
+  tmd <- suppressMessages(reshape2::melt(
+    tmd, variable.name = "CellType", value.name = "Prob"
+  ))
+  # tmd2 <- tmd %>% gather(key = "CellType", value = "Prob",
+  #                       -.data[["Sample"]], -.data[["nCellTypes"]])
   # probabilities target test
   pmd <- as_tibble(predictionsDeconv)
   pmd <- mutate(pmd, Sample = rownames(predictionsDeconv))
-  pmd <- pmd %>% gather(key = "CellType", value = "Pred", -.data[["Sample"]])
+  pmd <- suppressMessages(reshape2::melt(
+    pmd, variable.name = "CellType", value.name = "Pred"
+  ))
+  # pmd2 <- pmd %>% gather(key = "CellType", value = "Pred", -.data[["Sample"]])
   # union
   amd <- tmd %>% left_join(pmd, by = c("Sample", "CellType"))
+  # amd2 <- tmd2 %>% left_join(pmd2, by = c("Sample", "CellType"))
   # add bins to Probs
   amd$pBin <- 0
   for (p in seq(from = 0.1, to = 1, by = 0.1)) {
@@ -88,14 +93,20 @@ calculateEvalMetrics <- function(object) {
   # calculate stats
   amd <- .updateAMD(amd = amd, use.met = use.met)
   amdf <- amd %>% filter(amd$Prob > 0 & amd$Prob < 1)
+  
   eval.stats <- lapply(
     X = use.met, 
     FUN = function(x) .calculateMetrics(mat = amd, err = x)
   )
-  eval.stats.f <- lapply(
-    X = use.met, 
-    FUN = function(x) .calculateMetrics(mat = amdf, err = x)
-  )
+  if (nrow(amdf) != 0) {
+    eval.stats.f <- lapply(
+      X = use.met, 
+      FUN = function(x) .calculateMetrics(mat = amdf, err = x)
+    )  
+  } else {
+    eval.stats.f <- NULL
+  }
+  
   # update object
   trained.model(object)@test.deconv.metrics <- list(
     raw = amd,
@@ -250,17 +261,17 @@ se <- function(x) sqrt(var(x)/length(x))
 #' Generate box or violin plots showing error distribution
 #'
 #' Generate box or violin plots to show how errors are distributed. Errors can
-#' be shown all mixed or split by cell type (\code{CellType}) or number of cell
-#' types present in the spots (\code{nCellTypes}). See the \code{facet.by}
-#' argument and examples for more details.
+#' be shown all mixed or either split by cell type (\code{CellType}) or number 
+#' of cell types present in the spots (\code{nCellTypes}). See the 
+#' \code{facet.by} argument and examples for more details.
 #'
 #' @param object \code{\linkS4class{SpatialDDLS}} object with
 #'   \code{trained.model} slot containing metrics in the
 #'   \code{test.deconv.metrics} slot of a \code{\linkS4class{DeconvDLModel}}
 #'   object.
-#' @param error Error to be represented. Available errors are: absolute error
-#'   (\code{'AbsErr'}), proportional absolute error (\code{'ppAbsErr'}), squared
-#'   error (\code{'SqrErr'}), and proportional squared error
+#' @param error Error to be represented. Available metric errors are: absolute 
+#'   error (\code{'AbsErr'}), proportional absolute error (\code{'ppAbsErr'}), 
+#'   squared error (\code{'SqrErr'}), and proportional squared error 
 #'   (\code{'ppSqrErr'}).
 #' @param colors Vector of colors to be used.
 #' @param x.by Variable used for the X-axis. When \code{facet.by} is not
@@ -323,12 +334,15 @@ se <- function(x) sqrt(var(x)/length(x))
 #'   sc.data = sce,
 #'   sc.cell.ID.column = "Cell_ID",
 #'   sc.gene.ID.column = "Gene_ID",
+#'   sc.filt.genes.cluster = FALSE
 #' )
 #' SDDLS <- genMixedCellProp(
 #'   object = SDDLS,
 #'   cell.ID.column = "Cell_ID",
 #'   cell.type.column = "Cell_Type",
 #'   num.sim.spots = 50,
+#'   train.freq.cells = 2/3,
+#'   train.freq.spots = 2/3,
 #'   verbose = TRUE
 #' )
 #' SDDLS <- simMixedProfiles(SDDLS)
@@ -385,8 +399,6 @@ distErrorPlot <- function(
              is.null(trained.model(object)@test.deconv.metrics)) {
     stop("The provided object does not contain evaluation metrics. Use ",
          "'calculateEvalMetrics' function")
-  } else if (!is(trained.model(object)@test.deconv.metrics[[1]], "tbl_df")) {
-    stop("Evaluation metrics are incorrect. Please, use 'calculateEvalMetrics' function")
   } else if (!error %in% c("AbsErr", "ppAbsErr", "SqrErr", "ppSqrErr")) {
     stop("'error' provided is not valid. The available errors are: 'AbsErr', ",
          "'ppAbsErr', 'SqrErr' and 'ppSqrErr'")
@@ -406,7 +418,7 @@ distErrorPlot <- function(
   if (missing(colors)) colors <- default.colors()
   if (!is.null(color.by)) {
     if (length(colors) < length(unique(amd[[color.by]]))) 
-      stop("Number of provided colors not enough")
+      stop("Number of provided colors is not large enough")
   } 
   if (is.null(title))
     title.plot <- paste(error, "by", x.by)
@@ -520,9 +532,9 @@ distErrorPlot <- function(
 #' proportions of test data
 #'
 #' Generate correlation plots between predicted and expected cell type
-#' proportions of test data. Correlation plots can be shown all mixed or split
-#' by cell type (\code{CellType}) or the number of different cell types present
-#' in the spots (\code{nCellTypes}).
+#' proportions of test data. Correlation plots can be shown all mixed or either 
+#' split by cell type (\code{CellType}) or the number of different cell types 
+#' present in the spots (\code{nCellTypes}).
 #'
 #' @param object \code{\linkS4class{SpatialDDLS}} object with
 #'   \code{trained.model} slot containing metrics in the
@@ -566,7 +578,6 @@ distErrorPlot <- function(
 #' @examples
 #' \donttest{
 #' set.seed(123)
-#' set.seed(123)
 #' sce <- SingleCellExperiment::SingleCellExperiment(
 #'   assays = list(
 #'     counts = matrix(
@@ -587,12 +598,15 @@ distErrorPlot <- function(
 #'   sc.data = sce,
 #'   sc.cell.ID.column = "Cell_ID",
 #'   sc.gene.ID.column = "Gene_ID",
+#'   sc.filt.genes.cluster = FALSE
 #' )
 #' SDDLS <- genMixedCellProp(
 #'   object = SDDLS,
 #'   cell.ID.column = "Cell_ID",
 #'   cell.type.column = "Cell_Type",
 #'   num.sim.spots = 50,
+#'   train.freq.cells = 2/3,
+#'   train.freq.spots = 2/3,
 #'   verbose = TRUE
 #' )
 #' SDDLS <- simMixedProfiles(SDDLS)
@@ -646,8 +660,6 @@ corrExpPredPlot <- function(
              is.null(trained.model(object)@test.deconv.metrics)) {
     stop("The provided object does not have evaluation metrics. Use ",
          "'calculateEvalMetrics' function")
-  } else if (!is(trained.model(object)@test.deconv.metrics[[1]], "tbl_df")) {
-    stop("Evaluation metrics are not present, use 'calculateEvalMetrics' function")
   } else if (!is.null(color.by)) {
     if (!color.by %in% c("nCellTypes", "CellType"))
       stop("'color.by' provided is not valid. The available options are: 'nCellTypes', 'CellType' or NULL")
@@ -661,7 +673,7 @@ corrExpPredPlot <- function(
   
   if (!is.null(color.by)) {
     if (length(colors) < length(unique(amd[[color.by]]))) {
-      stop("The number of provided colors is not enough")
+      stop("The number of provided colors is not large enough")
     }  
   }
   if (is.null(title))
@@ -779,9 +791,9 @@ corrExpPredPlot <- function(
 #'
 #' Generate Bland-Altman agreement plots between predicted and expected cell
 #' type proportions from test data. The Bland-Altman agreement plots can be
-#' shown all mixed or split by cell type (\code{CellType}) or the number of cell
-#' types present in spots (\code{nCellTypes}). See the \code{facet.by} argument
-#' and examples for more information.
+#' shown all mixed or split by either cell type (\code{CellType}) or the number 
+#' of cell types present in spots (\code{nCellTypes}). See the \code{facet.by}
+#' argument and examples for more information.
 #'
 #' @param object \code{\linkS4class{SpatialDDLS}} object with
 #'   \code{trained.model} slot containing metrics in the
@@ -842,12 +854,15 @@ corrExpPredPlot <- function(
 #'   sc.data = sce,
 #'   sc.cell.ID.column = "Cell_ID",
 #'   sc.gene.ID.column = "Gene_ID",
+#'   sc.filt.genes.cluster = FALSE
 #' )
 #' SDDLS <- genMixedCellProp(
 #'   object = SDDLS,
 #'   cell.ID.column = "Cell_ID",
 #'   cell.type.column = "Cell_Type",
 #'   num.sim.spots = 50,
+#'   train.freq.cells = 2/3,
+#'   train.freq.spots = 2/3,
 #'   verbose = TRUE
 #' )
 #' SDDLS <- simMixedProfiles(SDDLS)
@@ -898,8 +913,6 @@ blandAltmanLehPlot <- function(
              is.null(trained.model(object)@test.deconv.metrics)) {
     stop("The provided object does not have evaluation metrics. Use ",
          "'calculateEvalMetrics' function")
-  } else if (!is(trained.model(object)@test.deconv.metrics[[1]], "tbl_df")) {
-    stop("Evaluation metrics are not correctly built, use 'calculateEvalMetrics' function")
   } else if (!is.null(color.by)) {
     if (!color.by %in% c("nCellTypes", "CellType")) {
       stop("'color.by' provided is not valid. The available options are: 'nCellTypes', 'CellType' or NULL")
@@ -934,7 +947,7 @@ blandAltmanLehPlot <- function(
   if (missing(colors)) colors <- default.colors()
   if (!is.null(color.by)) {
     if (length(colors) < length(unique(amd[[color.by]]))) {
-      stop("The number of provided colors is not enough")
+      stop("The number of provided colors is not large enough")
     }
     plot <- ggplot(amd, aes(x = .data[["Mean"]], y = .data[["Diff"]], 
                             colour = .data[[color.by]])) +
@@ -1028,19 +1041,22 @@ blandAltmanLehPlot <- function(
 #'   sc.data = sce,
 #'   sc.cell.ID.column = "Cell_ID",
 #'   sc.gene.ID.column = "Gene_ID",
+#'   sc.filt.genes.cluster = FALSE
 #' )
 #' SDDLS <- genMixedCellProp(
 #'   object = SDDLS,
 #'   cell.ID.column = "Cell_ID",
 #'   cell.type.column = "Cell_Type",
-#'   num.sim.spots = 50,
+#'   num.sim.spots = 100,
+#'   train.freq.cells = 2/3,
+#'   train.freq.spots = 2/3,
 #'   verbose = TRUE
 #' )
 #' SDDLS <- simMixedProfiles(SDDLS)
 #' # training of DDLS model
 #' SDDLS <- trainDeconvModel(
 #'   object = SDDLS,
-#'   batch.size = 15,
+#'   batch.size = 10,
 #'   num.epochs = 5
 #' )
 #' # evaluation using test data
@@ -1074,8 +1090,6 @@ barErrorPlot <- function(
              is.null(trained.model(object)@test.deconv.metrics)) {
     stop("The provided object does not have evaluation metrics. Use ",
          "'calculateEvalMetrics' function")
-  } else if (!is(trained.model(object)@test.deconv.metrics[[1]], "tbl_df")) {
-    stop("Evaluation metrics are not properly built, use 'calculateEvalMetrics' function")
   } else if (!by %in% c("nCellTypes", "CellType")) {
     stop("'by' provided is not valid. The available options are: 'nCellTypes', 'CellType'")
   } else if (!error %in% c("MAE", "MSE")) {

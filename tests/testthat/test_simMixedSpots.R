@@ -24,7 +24,8 @@ sce <- SingleCellExperiment::SingleCellExperiment(
 SDDLS <- createSpatialDDLSobject(
   sc.data = sce,
   sc.cell.ID.column = "Cell_ID",
-  sc.gene.ID.column = "Gene_ID"
+  sc.gene.ID.column = "Gene_ID",
+  sc.filt.genes.cluster = FALSE
 )
 SDDLS <- estimateZinbwaveParams(
   object = SDDLS,
@@ -386,7 +387,7 @@ test_that(
         type.data = "both",
         file.backend = tempfile(),
         block.processing = TRUE,
-        block.size = 3,
+        block.size = 1,
         verbose = TRUE
       ), regexp = "Writing block"
     )

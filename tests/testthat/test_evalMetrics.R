@@ -47,7 +47,8 @@ SDDLS <- createSpatialDDLSobject(
   sc.gene.ID.column = "Gene_ID",
   st.data = simSpatialExperiment(n = 10),
   st.spot.ID.column = "Cell_ID",
-  st.gene.ID.column = "Gene_ID"
+  st.gene.ID.column = "Gene_ID",
+  sc.filt.genes.cluster = FALSE
 )
 SDDLS <- estimateZinbwaveParams(
   object = SDDLS,
@@ -74,7 +75,7 @@ SDDLSComp <- genMixedCellProp(
 SDDLSComp <- simMixedProfiles(SDDLSComp, verbose = FALSE)
 SDDLSComp <- trainDeconvModel(
   object = SDDLSComp,
-  batch.size = 28,
+  batch.size = 20,
   verbose = FALSE
 )
 SDDLSComp <- suppressWarnings(calculateEvalMetrics(SDDLSComp))
@@ -174,9 +175,9 @@ test_that(
     # incorrect number of colors
     expect_error(
       distErrorPlot(
-        object = SDDLSComp, error = "AbsErr", colors = c("red", "blue")
+        object = SDDLSComp, error = "AbsErr", colors = c("red")
       ), 
-      regexp = "Number of provided colors not enough"
+      regexp = "Number of provided colors is not large enough"
     )
     # incorrect X variable (x.by parameter)
     expect_error(
@@ -233,7 +234,7 @@ test_that(
       corrExpPredPlot(
         object = SDDLSComp, colors = c("red", "blue")
       ), 
-      regexp = "The number of provided colors is not enough"
+      regexp = "The number of provided colors is not large enough"
     )
     # incorrect facet.by parameter
     expect_error(
@@ -279,7 +280,7 @@ test_that(
       blandAltmanLehPlot(
         object = SDDLSComp, colors = c("red", "blue")
       ), 
-      regexp = "The number of provided colors is not enough"
+      regexp = "The number of provided colors is not large enough"
     )
     # incorrect facet.by parameter
     expect_error(

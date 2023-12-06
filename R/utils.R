@@ -86,13 +86,16 @@ getProbMatrix <- function(object, type.data) {
 #'   sc.data = sce,
 #'   sc.cell.ID.column = "Cell_ID",
 #'   sc.gene.ID.column = "Gene_ID",
-#'   project = "Simul_example"
+#'   project = "Simul_example",
+#'   sc.filt.genes.cluster = FALSE
 #' )
 #' SDDLS <- genMixedCellProp(
 #'   object = SDDLS,
 #'   cell.ID.column = "Cell_ID",
 #'   cell.type.column = "Cell_Type",
-#'   num.sim.spots = 10,
+#'   num.sim.spots = 10, 
+#'   train.freq.cells = 2/3,
+#'   train.freq.spots = 2/3,
 #'   verbose = TRUE
 #' )
 #' showProbPlot(
@@ -258,8 +261,8 @@ saveTrainedModelAsH5 <- function(
   } else if (is.null(trained.model(object))) {
     stop("'trained.model' slot is empty")
   } else if (length(trained.model(object)@model) == 0) {
-    stop("There is not a model to save on disk. First, train a model with ",
-         "'trainSpatialDDLSModel' function")
+    stop("There is no model to save on disk. First, train a model with ",
+         "the 'trainSpatialDDLSModel' function")
   }
   if (file.exists(file.path)) {
     if (overwrite) {
@@ -345,7 +348,7 @@ loadTrainedModelFromH5 <- function(
       loaded.model <- load_model_hdf5(filepath = file.path, compile = FALSE)
     }, 
     error = function(cond) {
-      message(paste("\n", file.path, "file provided is not a valid Keras model:"))
+      message(paste("\n", file.path, "file provided is not a valid keras model:"))
       stop(cond)
     }
   )
@@ -423,8 +426,11 @@ SpatialDDLSTheme <- function() {
 #' @param data \code{\linkS4class{SpatialDDLS}} object with the
 #'   \code{deconv.spots} slot containing predicted cell type proportions.
 #' @param colors Vector of colors to be used.
-#' @param simplify Type of simplification performed during deconvolution. It can
+#' @param set Type of simplification performed during deconvolution. It can
 #'   be \code{simpli.set} or \code{simpli.maj} (\code{NULL} by default).
+#'   
+#' @param prediction Set of predicted cell proportions to be plotted. It can be 
+#'   \code{"Regularized"}, \code{"Intrinsic"} or \code{"Extrinsic"}. 
 #' @param color.line Color of the border bars.
 #' @param x.label Label of x-axis.
 #' @param rm.x.text Logical value indicating whether to remove x-axis ticks
@@ -448,7 +454,8 @@ SpatialDDLSTheme <- function() {
 barPlotCellTypes <- function(
   data,
   colors = NULL,
-  simplify = NULL,
+  set = NULL,
+  prediction = "Regularized",
   color.line = NA,
   x.label = "Spots",
   rm.x.text = FALSE,
@@ -467,24 +474,33 @@ barPlotCellTypes <- function(
              !any(index.st %in% seq_along(deconv.spots(data)))) {
     stop("Provided 'index.st' does not exist")
   }
-  if (!is.null(simplify) && !is.na(simplify)) {
-    if (!is(deconv.spots(data)[[index.st]], "list")) {
+  if (!is.null(set) && !is.na(set)) {
+    if (!any(names(deconv.spots(data)[[index.st]]) %in% c("simpli.set", "simpli.majority"))) {
       stop("No simplified results available")
     } else {
-      if (simplify != "simpli.set" && simplify != "simpli.majority") {
-        stop("simplify argument must be one of the following options: ",
+      if (set != "simpli.set" && set != "simpli.majority") {
+        stop("set argument must be one of the following options: ",
              "'simpli.set' or 'simpli.majority'")
-      } else if (!any(simplify == names(deconv.spots(data)[[index.st]]))) {
-        stop(paste(simplify, "data are not present in DeconvDLModel object"))
+      } else if (!any(set == names(deconv.spots(data)[[index.st]]))) {
+        stop(paste(set, "data are not present in DeconvDLModel object"))
       }
-      res <- deconv.spots(data)[[index.st]][[simplify]]
+      res <- deconv.spots(data)[[index.st]][[set]]
     }
   } else {
-    if (is(deconv.spots(data)[[index.st]], "list")) {
+    if (
+      is(deconv.spots(data)[[index.st]], "list") & 
+      any(names(deconv.spots(data)[[index.st]]) %in% c("simpli.set", "simpli.majority"))
+    ) {
       res <- deconv.spots(data)[[index.st]][[1]]
     } else {
       res <- deconv.spots(data)[[index.st]]
     }
+  }
+  
+  if (!any(prediction %in% c("Regularized", "Intrinsic", "Extrinsic"))) {
+    stop("prediction can only be one of the following options: 'Regularized', 'Intrinsic', 'Extrinsic'")
+  } else if (is.null(set) | missing(set)) {
+    res <- res[[prediction]]
   }
   if (is.null(colnames(res))) {
     stop(
@@ -597,7 +613,7 @@ barPlotCellTypes <- function(
 #' @examples
 #' \dontrun{
 #' notesInstallation <- installTFpython(
-#'   method = "auto", conda = "auto", install.conda = TRUE
+#'   conda = "auto", install.conda = TRUE
 #' )
 #' }
 #' 
@@ -650,7 +666,7 @@ installTFpython <- function(
   message("\n=== Installing tensorflow in SpatialDDLS-env environment")
   status3 <- tryCatch(
     tensorflow::install_tensorflow(
-      version = "2.5-cpu", 
+      version = "2.6-cpu", 
       method = "conda", 
       conda = dirConda, 
       envname = "SpatialDDLS-env"
@@ -671,7 +687,7 @@ installTFpython <- function(
          see ?tensorflow::use_condaenv"))
 }
 
-# these functions are not original, come from the Matrix.utils R package
+# functions from the Matrix.utils R package
 .aggregate.Matrix.sparse <- function(
     x, groupings = NULL, form = NULL, fun = 'sum', ...
 ) {

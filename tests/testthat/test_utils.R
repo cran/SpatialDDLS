@@ -45,7 +45,8 @@ SDDLS <- createSpatialDDLSobject(
   sc.gene.ID.column = "Gene_ID",
   st.data = simSpatialExperiment(n = 10),
   st.spot.ID.column = "Cell_ID",
-  st.gene.ID.column = "Gene_ID"
+  st.gene.ID.column = "Gene_ID",
+  sc.filt.genes.cluster = FALSE
 )
 SDDLS <- estimateZinbwaveParams(
   object = SDDLS,
@@ -139,7 +140,7 @@ test_that(
     skip_if_not(.checkPythonDependencies(alert = "none"))
     SDDLSComp <- trainDeconvModel(
       object = SDDLSComp,
-      batch.size = 28,
+      batch.size = 20,
       verbose = FALSE
     )
     # incorrect object: no trained.model slot
@@ -167,7 +168,7 @@ test_that(
     skip_if_not(.checkPythonDependencies(alert = "none"))
     SDDLSComp <- trainDeconvModel(
       object = SDDLSComp,
-      batch.size = 28,
+      batch.size = 20,
       verbose = FALSE
     )
     # saving model
@@ -181,7 +182,7 @@ test_that(
     trained.model(SDDLSCompBad)@model <- list()
     expect_error(
       saveTrainedModelAsH5(object = SDDLSCompBad, file.path = fileTMP), 
-      regexp = "There is not a model to save on disk"
+      regexp = "There is no model to save on disk"
     )
     # save a DNN model from JSON-like character object
     trained.model(SDDLSComp) <- .saveModelToJSON(trained.model(SDDLSComp))
@@ -232,7 +233,7 @@ test_that(
     skip_if_not(.checkPythonDependencies(alert = "none"))
     SDDLSComp <- trainDeconvModel(
       object = SDDLSComp,
-      batch.size = 28,
+      batch.size = 20,
       verbose = FALSE
     )
     # incorrect object: no trained.model slot

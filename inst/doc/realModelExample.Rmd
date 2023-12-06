@@ -1,5 +1,5 @@
 ---
-title: "Deconvolution of mouse lymph node samples"
+title: "Get started! Deconvolution of mouse lymph node samples"
 output: 
   rmarkdown::html_vignette:
     toc: true
@@ -16,8 +16,6 @@ fontsize: 12pt
 
 
 
-<!-- Reference: @Li2017 -->
-
 In this vignette, we will analyze a spatial transcriptomics dataset (10x Visium) comprising three slides from murine lymph nodes, two of which obtained after a 48-hour infection with _Mycobacterium smegmatis_ (@Lopez2022). As a reference, we will use the paired single-cell RNA-seq (10x Chromium) data from the same study. The raw data is publicly available on GEO ([GSE173778](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE173778)), but for ease of use, we have made it available through the `SpatialDDLSdata` R data package.
 
 # Loading data
@@ -33,7 +31,7 @@ library("ggplot2")
 library("ggpubr")
 
 ## in case it is not installed
-if (!requireNamespace("SpatialDDLS", quietly = TRUE)) {
+if (!requireNamespace("SpatialDDLSdata", quietly = TRUE)) {
   if (!requireNamespace("devtools", quietly = TRUE)) {
     install.packages("devtools")
   }
@@ -46,7 +44,7 @@ data(MouseDLN.SCE)
 data(MouseDLN.ST)
 ```
 
-For instance, let's plot the slides contained in the object ny condition:
+Let's explore the spatial transcriptomics data contained in the `MouseDLN.ST` object: 
 
 
 ```r
@@ -56,14 +54,17 @@ cbind(spatialCoords(MouseDLN.ST), colData(MouseDLN.ST)) %>% as.data.frame() %>%
   theme_classic() + coord_fixed()
 ```
 
-<img src="spatialdata-cond-1.png" title="plot of chunk spatialdata-cond" alt="plot of chunk spatialdata-cond" style="display: block; margin: auto;" />
+<div class="figure" style="text-align: center">
+<img src="spatialdata-cond-1.png" alt="plot of chunk spatialdata-cond"  />
+<p class="caption">plot of chunk spatialdata-cond</p>
+</div>
 
-With regards to the single-cell RNA-seq data, preprocessing and visualization using non-linear dimensionality reduction algorithms could be performed, but such analysis is outside the scope of this tutorial.
+With regard to the single-cell RNA-seq data, preprocessing and visualization could be performed, but such analysis is outside the scope of this tutorial.
 
 
 ## Loading data into a `SpatialDDLS` object
 
-Now, we need to create a `SpatialDDLS` object, which will serve as the central core for all subsequent steps. We suggest including both the spatial and single-cell transcriptomics data to enable filtering and selection of only those genes that are present in both data types for further analysis. Furthermore, we recommend filtering genes based on their expression levels. Please refer to the documentation to review the implemented strategies (`sc.filt.genes.cells` and `sc.filt.genes.cluster` parameters). 
+Now, we need to create a `SpatialDDLS` object, which will serve as the central core for all subsequent steps. We suggest including both the spatial and single-cell transcriptomics data to enable filtering and selection of only those genes that are present in both data types for further analyses. Additionally, we recommend filtering genes based on their expression levels in order to reduce the number of dimensions and consider only meaningful genes. Please refer to the documentation to review the implemented strategies (specially `sc.n.genes.per.cluster` and `sc.min.mean.counts` parameters). 
 
 
 ```r
@@ -73,11 +74,11 @@ mouseDLN.SDDLS <- createSpatialDDLSobject(
   sc.gene.ID.column = "GeneSymbol",
   sc.cell.type.column = "broad_cell_types",
   st.data = MouseDLN.ST,
-  sc.filt.genes.cells = TRUE,
   sc.min.counts = 1, 
-  sc.min.cells = 3,
-  sc.filt.genes.cluster = TRUE,
-  sc.min.mean.counts = 3,
+  sc.min.cells = 1,
+  sc.filt.genes.cluster = TRUE, 
+  sc.n.genes.per.cluster = 150,
+  sc.min.mean.counts = 2,
   st.spot.ID.column = "CellID",
   st.gene.ID.column = "GeneSymbol"
 )
@@ -96,11 +97,11 @@ mouseDLN.SDDLS <- createSpatialDDLSobject(
 ```
 
 ```
-##          - Selected features: 13948
+##          - Selected features: 12514
 ```
 
 ```
-##          - Discarded features: 0
+##          - Discarded features: 1434
 ```
 
 ```
@@ -120,27 +121,42 @@ mouseDLN.SDDLS <- createSpatialDDLSobject(
 ```
 
 ```
-##          - Selected features: 1142
+##          - Selected features: 12350
 ```
 
 ```
-##          - Discarded features: 11696
+##          - Discarded features: 488
 ```
 
 ```
 ## 
-## === Number of shared genes between single-cell and spatial transcriptomics datasets: 1140
+## === Number of shared genes between single-cell and spatial transcriptomics datasets: 10941
 ```
 
 ```
-##     - Original number of genes of single-cell data: 1142
+##     - Original # genes in single-cell data: 12350
 ```
 
 ```
-##     - Original number of genes of spatial transcriptomics data (object with more genes): 13948
+##     - Original # genes in ST data (object with the greatest # genes): 12514
 ```
 
-We can show basic information about the object: 
+```
+## 
+## === Number of removed mitochondrial genes: 11
+```
+
+```
+## 
+## === Number of genes after filtering based on logFC: 1041
+```
+
+```
+## 
+## === Final number of dimensions for further analyses: 1041
+```
+
+We can show some basic information about the object: 
 
 
 ```r
@@ -150,28 +166,28 @@ mouseDLN.SDDLS
 ```
 ## An object of class SpatialDDLS 
 ## Real single-cell profiles:
-##   1140 features and 14989 cells
-##   rownames: Vrk1 Limd2 Sell ... Sell Atp6v1g1 mt-Atp6 Cct8 
-##   colnames: GTAACACAGATGTTAG-1-2 CATTGTTGTTCGGACC-1-3 ACTTAGGTCGCATTGA-1-0 ... ACTTAGGTCGCATTGA-1-0 CACGGGTTCGCTTGCT-1-2 TGGATCATCATTTGTC-1-2 CTCCGATTCAACCCGG-1-0 
+##   1041 features and 14989 cells
+##   rownames: Klrb1a Tnfrsf18 Ramp3 ... Ramp3 Cpe Mreg Ccl9 
+##   colnames: GAAGAATCATGGGCAA-1-3 GGGACCTGTCATCCGG-1-0 TCCCATGGTCCAAAGG-1-0 ... TCCCATGGTCCAAAGG-1-0 GCACGGTAGTCGGGAT-1-1 AACGTCAGTAGCTTAC-1-2 GGCGTCACATGCACTA-1-2 
 ## Spatial experiments:
 ##   1 experiments
-##   1140 features and 1092 cells
-##   rownames: Gsn Psmb9 Mapre1 ... Mapre1 Rpl39 C1qbp Ikzf2 
-##   colnames: TCCGTTTAGCCTTGAA-1-1 GGGTCATGCGTACCAT-1-0 GATCGGCGATAAGTCG-1-0 ... GATCGGCGATAAGTCG-1-0 TACGTGCACTATGCTG-1-0 TACATAGGCATACACC-1-1 TTCCAATCAGAGCTAG-1-1 
+##   1041 features and 1092 spots
+##   rownames: Hck Ets1 Ifitm10 ... Ifitm10 Atp1b3 Mctp2 Igfbp4 
+##   colnames: TTGCCCTGATCACGGG-1-0 GCCTATAGTGTCAGGG-1-1 TGGTGATCGTATTTGT-1-0 ... TGGTGATCGTATTTGT-1-0 GCTGGCATATTCACCT-1-0 GATCTTTGCAGGGTAT-1-0 CCATTCCCTGCCCACA-1-0 
 ## Project: SpatialDDLS-Proj
 ```
 
-In this case, we are only working with 1 spatial transcriptomics dataset, but an arbitrary number of `SpatialExperiment` objects can be provided. 
+In this case, we are only working on 1 spatial transcriptomics dataset, but an arbitrary number of `SpatialExperiment` objects can be loaded. 
 
 ## Simulation of mixed transcriptional profiles
 
-Now, we are going to simulate the cell composition matrices that will serve to simulate mixed transcriptional profiles with known cell proportions. This is done by the `genMixedCellProp` function in which we can control different aspects such as the number of mixed transcriptional profiles that will be generated, the number of cells used for each mixed profile, etc. These parameters must be decided depending on the reference and the available computational resources. For this example, and as standard reference, we will use `num.sim.spots = 15000` and `n.cells = 200`. For more information about these parameters, see the documentation. These cell type proportions will be generated by three methods: 
+Now, we are going to simulate cell composition matrices that will serve to simulate mixed transcriptional profiles with known cell proportions. This is done by the `genMixedCellProp` function in which we can control different aspects, such as the number of mixed transcriptional profiles to be generated or the number of cells used to simulate each mixed profile. These parameters must be decided depending on the size of the single-cell reference and the available computational resources. For this example, and as standard reference, we will use `num.sim.spots = 10000` and `n.cells = 50`. The cell type composition of these mixed profiles will be generated by three methods: 
 
-* A random sampling of a Dirichlet distribution. Moreover, in order to make these proportions more sparse, the `prob.sparity` parameter controls the probability of having missing cell types in each simulated spot, as opposed to a mixture of all cell types. 
+* A random sampling of a Dirichlet distribution. Within this set of samples, in order to make these proportions more sparse, the `prob.sparity` parameter controls the probability of having missing cell types in each simulated spot, as opposed to a mixture of all cell types. 
 * Pure mixed transcriptional profiles composed of `n.cells` cells of the same cell type aggregated.
-* Transcriptional profiles in which a minimum number of missing cell types will be imposed. This is control by the `min.zero.prop` argument. 
+* Transcriptional profiles in which a minimum number of missing cell types will be imposed. This is controlled by the `min.zero.prop` argument. 
 
-The relative abundance of samples generated by these criteria can be control by the `proportion.method` parameter. Finally,`genMixedCellProp` will automatically divide the reference cells contained in the `single.cell.real` slot into training and test subsets, and randomly assign `n.cells` cells to form every mixed transcriptional profile. 
+The relative abundance of samples generated by these criteria can be controlled by the `proportion.method` parameter. Finally, the `genMixedCellProp` function will automatically divide the reference cell profiles contained in the `single.cell.real` slot into training and test subsets and randomly assign `n.cells` cells to generate every mixed transcriptional profile. 
 
 
 ```r
@@ -179,21 +195,20 @@ mouseDLN.SDDLS <- genMixedCellProp(
   mouseDLN.SDDLS,
   cell.ID.column = "CellID",
   cell.type.column = "broad_cell_types",
-  num.sim.spots = 15000,
-  n.cells = 200,
+  num.sim.spots = 10000,
+  n.cells = 50,
   train.freq.cells = 2/3,
   train.freq.spots = 2/3,
-  proportion.method = c(0.4, 0.3, 0.3),
-  prob.sparity = 0.5, 
-  min.zero.prop = 9,
-  balanced.type.cells = TRUE,
-  verbose = TRUE
+  proportion.method = c(0, 0, 1),
+  prob.sparity = 1, 
+  min.zero.prop = 5,
+  balanced.type.cells = TRUE
 )
 ```
 
 ```
 ## 
-## === The number of mixed profiles that will be generated is equal to 15000
+## === The number of mixed profiles that will be generated is equal to 10000
 ```
 
 ```
@@ -240,7 +255,7 @@ mouseDLN.SDDLS <- genMixedCellProp(
 ```
 
 ```
-##     - Mixed spots: 10000
+##     - Mixed spots: 6667
 ##     - Cell types: 12
 ```
 
@@ -249,7 +264,7 @@ mouseDLN.SDDLS <- genMixedCellProp(
 ```
 
 ```
-##     - Mixed spots: 5000
+##     - Mixed spots: 3333
 ##     - Cell types: 12
 ```
 
@@ -257,8 +272,7 @@ mouseDLN.SDDLS <- genMixedCellProp(
 ## DONE
 ```
 
-
-Then, we can call the `simMixedProfiles` function which will generate the actual mixed transcriptional profiles using the cell composition matrices generated in the previous step. This step may take a while depending on the number of transcriptional profiles to be simulated, so be patient! In addition, the way the mixed profiles will be generated can be decided. We recommend summing up raw counts, and then normalize samples by log-CPM (`mixing.function = "AddRawCount"`), but other methods are available (see Documentation). 
+Then, we can call the `simMixedProfiles` function, which will generate the actual mixed transcriptional profiles using the cell composition matrices generated in the previous step. This step may take a while depending on the number of transcriptional profiles to be simulated, so be patient! In addition, users can choose the method by which the mixed profiles will be generated. We recommend summing up raw counts, and then normalizing samples to obtain logCPMs (`mixing.function = "AddRawCount"`), but other methods are available (see Documentation). 
 
 
 ```r
@@ -271,12 +285,12 @@ mouseDLN.SDDLS <- simMixedProfiles(mouseDLN.SDDLS, threads = 3)
 
 ```
 ## 
-## === Generating train bulk samples:
+## === Generating train mixed profiles:
 ```
 
 ```
 ## 
-## === Generating test bulk samples:
+## === Generating test mixed profiles:
 ```
 
 ```
@@ -286,92 +300,25 @@ mouseDLN.SDDLS <- simMixedProfiles(mouseDLN.SDDLS, threads = 3)
 
 ## Training a fully-connected neural network using mixed transcriptional profiles
 
-Having generated a set of mixed transcriptional profiles with known cell composition, we can then train a neural network using the training subset to predict cell type proportions in the test subset. Once trained, the model can make cell type proportion predictions based on the transcriptional profile of new samples, such as each spot in a spatial transcriptomics experiment. The architecture of the network is fully customizable and should be adjusted according to the number of genes used as input and the complexity of the biological context being studied. For this study, we will employ a model with three hidden layers, each consisting of 200 neurons, and a training process involving 40 epochs.
+Having generated a set of mixed transcriptional profiles with known cell composition, we can then train a neural network using the training subset and evaluate the model by predicting cell type proportions on the test subset. Once trained, the model can deconvolute the cellular composition of new transcriptional profiles, such as spots in a spatial transcriptomics experiment. The architecture of the network is fully customizable, although in our experience, the hyperparameters used in this example work for most of the cases. Particularly, we will employ a model with two hidden layers, each consisting of 200 neurons, and a training process involving 60 epochs.
 
 
 ```r
 mouseDLN.SDDLS <- trainDeconvModel(
   mouseDLN.SDDLS,
-  num.epochs = 40,
-  num.hidden.layers = 3, 
-  num.units = c(200, 200, 200)
+  num.epochs = 60,
+  num.hidden.layers = 2, 
+  num.units = c(200, 200),
+  verbose = FALSE
 ) 
 ```
 
 ```
-## Loaded Tensorflow version 2.5.3
+##   1/105 [..............................] - ETA: 12s - loss: 0.0949 - accuracy: 0.8750 - mean_absolute_error: 0.0187 - categorical_accuracy: 0.8750 81/105 [======================>.......] - ETA: 0s - loss: 0.0826 - accuracy: 0.8808 - mean_absolute_error: 0.0170 - categorical_accuracy: 0.8808 105/105 [==============================] - 0s 622us/step - loss: 0.0827 - accuracy: 0.8818 - mean_absolute_error: 0.0170 - categorical_accuracy: 0.8818
+## 105/105 [==============================] - 0s 626us/step - loss: 0.0827 - accuracy: 0.8818 - mean_absolute_error: 0.0170 - categorical_accuracy: 0.8818
 ```
 
-```
-## === Training and test from stored data
-```
-
-```
-##     Using only simulated mixed samples
-## 
-##     Using only simulated mixed samples
-```
-
-```
-## Model: "SpatialDDLS"
-## ________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
-## Layer (type)                                                                                                              Output Shape                                                                                                 Param #                                  
-## ================================================================================================================================================================================================================================================================================
-## Dense1 (Dense)                                                                                                            (None, 200)                                                                                                  228200                                   
-## ________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
-## Activation1 (Activation)                                                                                                  (None, 200)                                                                                                  0                                        
-## ________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
-## Dropout1 (Dropout)                                                                                                        (None, 200)                                                                                                  0                                        
-## ________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
-## Dense2 (Dense)                                                                                                            (None, 200)                                                                                                  40200                                    
-## ________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
-## Activation2 (Activation)                                                                                                  (None, 200)                                                                                                  0                                        
-## ________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
-## Dropout2 (Dropout)                                                                                                        (None, 200)                                                                                                  0                                        
-## ________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
-## Dense3 (Dense)                                                                                                            (None, 200)                                                                                                  40200                                    
-## ________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
-## Activation3 (Activation)                                                                                                  (None, 200)                                                                                                  0                                        
-## ________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
-## Dropout3 (Dropout)                                                                                                        (None, 200)                                                                                                  0                                        
-## ________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
-## Dense4 (Dense)                                                                                                            (None, 12)                                                                                                   2412                                     
-## ________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
-## ActivationSoftmax (Activation)                                                                                            (None, 12)                                                                                                   0                                        
-## ================================================================================================================================================================================================================================================================================
-## Total params: 311,012
-## Trainable params: 311,012
-## Non-trainable params: 0
-## ________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
-```
-
-```
-## 
-## === Training DNN with 10000 samples:
-```
-
-```
-## 
-## === Evaluating DNN in test data (5000 samples)
-```
-
-```
-##    - loss: 0.0617
-##    - accuracy: 0.8562
-##    - mean_absolute_error: 0.0143
-##    - categorical_accuracy: 0.8562
-```
-
-```
-## 
-## === Generating prediction results using test data
-```
-
-```
-## DONE
-```
-
-By default, some metrics about the performance of the model will be displayed. More advanced metrics can be calculated using the `calculateEvalMetrics` function. This function computes mean absolute error (MAE) and mean squared error (MSE) metrics per cell type, which can provide insight into the model's performance for each cell type. These metrics can be visualized using various functions:
+Some metrics of the training progress can be shown by setting `verbose = TRUE`. Anyhow, more advanced metrics can be calculated using the `calculateEvalMetrics` function. This function computes mean absolute error (MAE) and mean squared error (MSE) metrics per cell type, providing insight into the model's performance for each cell type. These metrics can be visualized using various functions:
 
 
 ```r
@@ -387,14 +334,10 @@ distErrorPlot(
 )
 ```
 
-<img src="abserr-celltype-1.png" title="plot of chunk abserr-celltype" alt="plot of chunk abserr-celltype" style="display: block; margin: auto;" />
-
-
-```r
-barErrorPlot(mouseDLN.SDDLS, error = "MAE", by = "CellType")
-```
-
-<img src="abserr-celltype-2-1.png" title="plot of chunk abserr-celltype-2" alt="plot of chunk abserr-celltype-2" style="display: block; margin: auto;" />
+<div class="figure" style="text-align: center">
+<img src="abserr-celltype-1.png" alt="plot of chunk abserr-celltype"  />
+<p class="caption">plot of chunk abserr-celltype</p>
+</div>
 
 
 ```r
@@ -409,7 +352,10 @@ distErrorPlot(
 )
 ```
 
-<img src="abserr-celltype-sep-1.png" title="plot of chunk abserr-celltype-sep" alt="plot of chunk abserr-celltype-sep" style="display: block; margin: auto;" />
+<div class="figure" style="text-align: center">
+<img src="abserr-celltype-sep-1.png" alt="plot of chunk abserr-celltype-sep"  />
+<p class="caption">plot of chunk abserr-celltype-sep</p>
+</div>
 
 
 
@@ -427,17 +373,27 @@ corrExpPredPlot(
 ## `geom_smooth()` using formula = 'y ~ x'
 ```
 
-<img src="corr-pred-1.png" title="plot of chunk corr-pred" alt="plot of chunk corr-pred" style="display: block; margin: auto;" />
+<div class="figure" style="text-align: center">
+<img src="corr-pred-1.png" alt="plot of chunk corr-pred"  />
+<p class="caption">plot of chunk corr-pred</p>
+</div>
 
-As demonstrated, the overall performance is satisfactory, indicating that the model is capable of comprehending the distinctive features of each cell type to provide precise predictions regarding the cell type composition of the samples.
+As demonstrated, the overall performance is satisfactory, indicating that the model is capable of comprehending the distinctive features of each cell type to provide precise predictions of the cell type composition of transcriptional profiles.
 
 ## Deconvolution of the spatial transcriptomics dataset
 
-Finally, we can use our trained model to deconvolute the signals of each spot! This step is very quick. As we already loaded the spatial transcriptomics experiment we wish to deconvolute, calling the `deconvSpatialDDLS` function is sufficient. However, if additional spatial experiments are to be included, see `loadSTProfiles`. 
+Finally, we can use our trained model to deconvolute the signals of each spot using the `deconvSpatialDDLS` function. By default, this function uses the trained model to predict cell proportions of two sets of transcriptional profiles obtained from the ST datasets: 
+
+* 'Intrinsic' profiles: these are the actual transcriptional profiles of every spot in the ST dataset. 
+* 'Extrinsic' profiles: these are simulated profiles generated from the surrounding spots of every spot. The concept is to create a mirrored set of transcriptional profiles that represent the transcriptional features of the spatial context of each spot. 
+
+The latter can be used to understand how similar each spot is to its neighbors. Considering the hypothesis that we can infer the cellular composition of each spot based on its surroundings given the correlation between spatial location and cell composition/transcriptional features, we can use this information to spatially contextualize our predictions and improve their accuracy. We refer to this process as spatial regularization. Details about the methodology are explained in the Documentation and @Mananes2023. 
 
 
 ```r
-mouseDLN.SDDLS <- deconvSpatialDDLS(mouseDLN.SDDLS)
+mouseDLN.SDDLS <- deconvSpatialDDLS(
+  mouseDLN.SDDLS, k.spots = 6, fast.pca = TRUE
+)
 ```
 
 ```
@@ -445,15 +401,30 @@ mouseDLN.SDDLS <- deconvSpatialDDLS(mouseDLN.SDDLS)
 ```
 
 ```
-## === Setting 0 features that are not present in trained model to zero
-```
-
-```
-## === Normalizing and scaling data
+## === Normalizing data (LogCPM)
 ```
 
 ```
 ## === Predicting cell type proportions
+```
+
+```
+##  1/35 [..............................] - ETA: 0s35/35 [==============================] - 0s 565us/step
+## 35/35 [==============================] - 0s 576us/step
+```
+
+```
+## 
+## === Calculating distances in PCA space
+```
+
+```
+## 
+## === Calculating 50 PCs
+```
+
+```
+## === Calculating alpha factors based on distances
 ```
 
 ```
@@ -467,24 +438,229 @@ Now, let's project these predicted proportions in the spatial coordinates:
 plotSpatialPropAll(mouseDLN.SDDLS, index.st = 1)
 ```
 
-<img src="pred-spatial-1.png" title="plot of chunk pred-spatial" alt="plot of chunk pred-spatial" style="display: block; margin: auto;" />
+<div class="figure" style="text-align: center">
+<img src="pred-spatial-1.png" alt="plot of chunk pred-spatial"  />
+<p class="caption">plot of chunk pred-spatial</p>
+</div>
 
-To reveal hidden patterns in the coordinates caused by using the same color scale, we can utilize the `plotSpatialProp` function to plot each cell type independently:
+To reveal hidden patterns in the coordinates caused by using the same color scale, we can utilize the `plotSpatialProp` function to independently plot each cell type:
 
 
 ```r
-for (i in mouseDLN.SDDLS@trained.model@cell.types) {
-  print(plotSpatialProp(
-    mouseDLN.SDDLS, index.st = 1, cell.type = i, colors = "spectral") + coord_fixed()
-  )
-}
+list.plots <- lapply(
+  X = trained.model(mouseDLN.SDDLS) %>% cell.types(), 
+  FUN = \(x) {
+    plotSpatialProp(
+        mouseDLN.SDDLS, index.st = 1, cell.type = x, size.point = 1,
+        colors = "blues"
+      ) + coord_fixed()
+  }
+)
+ggarrange(plotlist = list.plots[1:4], align = "hv")
 ```
 
-<img src="pred-spatial-sep-1.png" title="plot of chunk pred-spatial-sep" alt="plot of chunk pred-spatial-sep" style="display: block; margin: auto;" /><img src="pred-spatial-sep-2.png" title="plot of chunk pred-spatial-sep" alt="plot of chunk pred-spatial-sep" style="display: block; margin: auto;" /><img src="pred-spatial-sep-3.png" title="plot of chunk pred-spatial-sep" alt="plot of chunk pred-spatial-sep" style="display: block; margin: auto;" /><img src="pred-spatial-sep-4.png" title="plot of chunk pred-spatial-sep" alt="plot of chunk pred-spatial-sep" style="display: block; margin: auto;" /><img src="pred-spatial-sep-5.png" title="plot of chunk pred-spatial-sep" alt="plot of chunk pred-spatial-sep" style="display: block; margin: auto;" /><img src="pred-spatial-sep-6.png" title="plot of chunk pred-spatial-sep" alt="plot of chunk pred-spatial-sep" style="display: block; margin: auto;" /><img src="pred-spatial-sep-7.png" title="plot of chunk pred-spatial-sep" alt="plot of chunk pred-spatial-sep" style="display: block; margin: auto;" /><img src="pred-spatial-sep-8.png" title="plot of chunk pred-spatial-sep" alt="plot of chunk pred-spatial-sep" style="display: block; margin: auto;" /><img src="pred-spatial-sep-9.png" title="plot of chunk pred-spatial-sep" alt="plot of chunk pred-spatial-sep" style="display: block; margin: auto;" /><img src="pred-spatial-sep-10.png" title="plot of chunk pred-spatial-sep" alt="plot of chunk pred-spatial-sep" style="display: block; margin: auto;" /><img src="pred-spatial-sep-11.png" title="plot of chunk pred-spatial-sep" alt="plot of chunk pred-spatial-sep" style="display: block; margin: auto;" /><img src="pred-spatial-sep-12.png" title="plot of chunk pred-spatial-sep" alt="plot of chunk pred-spatial-sep" style="display: block; margin: auto;" />
+<div class="figure" style="text-align: center">
+<img src="pred-spatial-sep-1.png" alt="plot of chunk pred-spatial-sep"  />
+<p class="caption">plot of chunk pred-spatial-sep</p>
+</div>
 
-## Comparing results with general cell markers
+```r
+ggarrange(plotlist = list.plots[5:8], align = "hv")
+```
 
-Finally, we can check whether there is a collocation between the predicted cell type proportions and the expression of some classic markers for each cell type. 
+<div class="figure" style="text-align: center">
+<img src="pred-spatial-sep-2.png" alt="plot of chunk pred-spatial-sep"  />
+<p class="caption">plot of chunk pred-spatial-sep</p>
+</div>
+
+```r
+ggarrange(plotlist = list.plots[9:12], align = "hv")
+```
+
+<div class="figure" style="text-align: center">
+<img src="pred-spatial-sep-3.png" alt="plot of chunk pred-spatial-sep"  />
+<p class="caption">plot of chunk pred-spatial-sep</p>
+</div>
+
+In addition to the 'regularized' cell proportions, we can plot the predictions calculated for the intrinsic and extrinsic transcriptional profiles. For instance, let's plot those predicted from the extrinsic transcriptional profiles:
+
+
+```r
+list.plots <- lapply(
+  X = trained.model(mouseDLN.SDDLS) %>% cell.types(), 
+  FUN = \(x) {
+    plotSpatialProp(
+        mouseDLN.SDDLS, index.st = 1, cell.type = x, size.point = 1,
+        colors = "blues", prediction = "Extrinsic"
+      ) + coord_fixed()
+  }
+)
+ggarrange(plotlist = list.plots[1:4], align = "hv")
+```
+
+<div class="figure" style="text-align: center">
+<img src="pred-spatial-sep-extrinsic-1.png" alt="plot of chunk pred-spatial-sep-extrinsic"  />
+<p class="caption">plot of chunk pred-spatial-sep-extrinsic</p>
+</div>
+
+```r
+ggarrange(plotlist = list.plots[5:8], align = "hv")
+```
+
+<div class="figure" style="text-align: center">
+<img src="pred-spatial-sep-extrinsic-2.png" alt="plot of chunk pred-spatial-sep-extrinsic"  />
+<p class="caption">plot of chunk pred-spatial-sep-extrinsic</p>
+</div>
+
+```r
+ggarrange(plotlist = list.plots[9:12], align = "hv")
+```
+
+<div class="figure" style="text-align: center">
+<img src="pred-spatial-sep-extrinsic-3.png" alt="plot of chunk pred-spatial-sep-extrinsic"  />
+<p class="caption">plot of chunk pred-spatial-sep-extrinsic</p>
+</div>
+
+As one might expect, this is a smoothed version of the final predictions. It is also possible to visualize distances between the extrinsic and intrinsic transcriptional profiles of each spot to understand how the regularization step works by using the `plotDistances` function: 
+
+
+```r
+plotDistances(mouseDLN.SDDLS, index.st = 1, size.point = 1.5) + coord_fixed()
+```
+
+<div class="figure" style="text-align: center">
+<img src="distances-1.png" alt="plot of chunk distances"  />
+<p class="caption">plot of chunk distances</p>
+</div>
+
+Those spots with distances less than the mean distance were regularized according to their nearest neighbor spots. 
+
+<!-- We can observe this spots using the following chunk of code:  -->
+
+<!-- ```{r, modified-spots} -->
+<!-- st.coor <- SpatialExperiment::spatialCoords( -->
+<!--   spatial.experiments(object = mouseDLN.SDDLS, index.st = 1) -->
+<!-- )[, 1:2] -->
+<!-- colnames(st.coor) <- paste("Spatial", 1:2) -->
+<!-- st.pred <- deconv.spots(object = mouseDLN.SDDLS, index.st = 1) -->
+<!-- alpha.factors <- st.pred[["Alpha.Factors"]] -->
+<!-- dfPlot <- as.data.frame(cbind(st.coor, alpha.factors)) -->
+<!-- ggplot( -->
+<!--   dfPlot, aes( -->
+<!--     x = .data[["Spatial 1"]], y = .data[["Spatial 2"]],  -->
+<!--     color = alpha.factors -->
+<!--   ) -->
+<!-- ) + geom_point(size = 1.5) + scale_color_gradient2() +  -->
+<!--   ggtitle("Distances") + SpatialDDLSTheme() + coord_fixed() -->
+<!-- ``` -->
+
+## Interpreting the model
+
+In order to make predictions more transparent, `SpatialDDLS` includes an additional module designed to provide insights into the model's decision-making process. It relies on calculating the predicted classes/loss function gradients with respect to the input variables, a method popularly known as **Vanilla Gradient**. These numeric values are computed for each gene and cell type using the pure mixed transcriptional profiles previously simulated. Therefore, they can be interpreted as the extent to which each feature is contributing to the model's predictions. While these values are initially calculated at the sample/gene level, they can be aggregated at the cell type level in order to assess the relevance of different genes for cell type proportion predictions. These steps are performed through the `interGradientDL` function:
+
+
+```r
+mouseDLN.SDDLS <- interGradientsDL(
+  mouseDLN.SDDLS, scaling = "standardize", method = "class"
+)
+```
+
+Importantly, depending on the `method` parameter, positive and negative gradients must be differently interpreted: 
+
+* If gradients with respect to the input variables were calculated using the loss function (`method = "loss"`), genes with negative gradients (those that minimize the loss function) will be positively correlated with the presence of each cell type. 
+* Conversely, if gradients with respect to the input variables were calculated using classes (`method = "class"`), genes with positive gradients (those that make the probability of being a cell type higher) will be positively associated with each cell type. 
+
+It is important to note that these markers should not be interpreted as cell type markers. Rather, they serve as indications to help interpret the model's performance. In addition, due to the multivariate nature of our approach, gradients are surrogates at the feature level for predictions made considering all input variables collectively, and thus caution should be exercised in drawing direct conclusions about specific gene-cell type relationships.
+
+For this example, let's calculate gradients of the class function with respect to the input features and show the top 5 genes with the greatest gradients per cell type:
+
+
+```r
+top.gradients <- topGradientsCellType(
+  mouseDLN.SDDLS, method = "class", top.n.genes = 5
+)
+sapply(
+  top.gradients, \(x) x$Positive
+) %>% as.data.frame()
+```
+
+```
+##   B cells CD4 T cells CD8 T cells    cDC1s   cDC2s GD T cells   Macrophages Migratory DCs Monocytes NK cells     pDCs Tregs
+## 1  Vpreb3      Igfbp4       Satb1    Cdc20 Gm26917      Ly6c1       Chchd10        Sec11c    Sec11c    Cox7b   Sec11c  Ddx5
+## 2   Cd79b       Satb1        Lef1   Neurl3   Ptprc       Cd28           Mif       Ifitm10    Epsti1   Sec11c     Ryr2 Itgb1
+## 3  Sec11c       Ly6c1       Pcgf5    Gstm5  Gprc5c       Ddx5 1300017J02Rik        Epsti1       Myc     Ryr2 Lgals3bp Foxp3
+## 4 Chchd10        Lef1       Timp2  Bcl2a1a   Mbnl1      Limd2 2200002D01Rik        Fam20c   Ifitm10  Tnfrsf9     Lrp8 Ctla4
+## 5  Sh3bp5       Rps29        Acp5 Lgals3bp   Tiam1     Gpr183          Ehd1      Rabgap1l    Atp2b1    Klrc2      Fyb   Fyn
+```
+
+As can be seen, among the top 5 genes some canonical markers for different cell types appear, such as Cd72 for B cells, Cd8a for CD8 T cells, or Foxp3 for Tregs. These are just the top 5 genes, so considering a higher number can provide a more comprehensive understanding of the genes utilizaed by the model.
+
+We also provide the `plotHeatmapGradsAgg` function for visualizing the top N mean gradients per cell type. This plot highlights genes with high gradients across different cell types, reflecting the multivariate nature of neural networks. It is advisable to examine both the most positive and negative gradients, as these genes significantly contribute to the network's predictions.
+
+
+```r
+hh <- plotHeatmapGradsAgg(mouseDLN.SDDLS, top.n.genes = 4, method = "class")
+hh$Positive
+```
+
+<div class="figure" style="text-align: center">
+<img src="positive-grad-1.png" alt="plot of chunk positive-grad"  />
+<p class="caption">plot of chunk positive-grad</p>
+</div>
+
+
+```r
+hh$Negative
+```
+
+<div class="figure" style="text-align: center">
+<img src="negative-grad-1.png" alt="plot of chunk negative-grad"  />
+<p class="caption">plot of chunk negative-grad</p>
+</div>
+
+## Clustering analysis
+
+The `SpatialDDLS` R package also includes some functions to cluster the ST dataset according to the predicted cell composition of each spot. This functionality enables to dissect the ST datasets into distinct cellular niches, information that might be relevant for further analyses. 
+
+
+```r
+mouseDLN.SDDLS <- spatialPropClustering(mouseDLN.SDDLS, k.nn = 20)
+```
+
+```
+##    No 'index.st' provided. Deconvoluting all SpatialExperiment objects contained in the `spatial.experiments` slot
+```
+
+```
+## === Selected graph-based clustering
+```
+
+```
+## === Running clustering for slide 1
+```
+
+
+```r
+plotSpatialClustering(mouseDLN.SDDLS) + coord_fixed()
+```
+
+```
+##    No 'index.st' provided. Using first ST dataset
+```
+
+```
+## === Plotting first clustering configuration Clustering.graph.k.20
+```
+
+<div class="figure" style="text-align: center">
+<img src="clustering-1.png" alt="plot of chunk clustering"  />
+<p class="caption">plot of chunk clustering</p>
+</div>
+
+
+## Comparing deconvoluted cell proportions with colocalization of cell markers
+
+Finally, we are going to assess whether there is a collocation between the predicted cell type proportions and the expression of known classic markers for each cell type. This analysis aims to validate the model's predictions by comparing them with well-established cellular markers, but it does not mean to be a quantitative validation of the model.
 
 
 ```r
@@ -519,7 +695,9 @@ colnames(meanZscoresCustom) <- names(customMarkers)
 
 
 ```r
-color.z.scores <- rev(colorRampPalette(RColorBrewer::brewer.pal(n = 10, name = "RdBu"))(20))
+color.z.scores <- rev(
+  colorRampPalette(RColorBrewer::brewer.pal(n = 10, name = "RdBu"))(20)
+)
 st.coor <- SpatialExperiment::spatialCoords(
   spatial.experiments(object = mouseDLN.SDDLS, index.st = 1)
 )
@@ -539,10 +717,12 @@ dfPlotLong %>% ggplot(
     axis.title.x = element_blank(), axis.text.x = element_blank(),
     axis.ticks.x = element_blank(), axis.title.y = element_blank(),
     axis.text.y = element_blank(), axis.ticks.y = element_blank()
-  ) + coord_fixed() + facet_wrap(~ CellType)
+  ) + coord_fixed() + facet_wrap(~ CellType) 
 ```
 
-<img src="zscores-1.png" title="plot of chunk zscores" alt="plot of chunk zscores" style="display: block; margin: auto;" />
-
+<div class="figure" style="text-align: center">
+<img src="zscores-1.png" alt="plot of chunk zscores"  />
+<p class="caption">plot of chunk zscores</p>
+</div>
 
 ## References

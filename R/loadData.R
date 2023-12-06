@@ -1,5 +1,7 @@
 #' @importFrom utils read.delim 
 #' @importFrom stats setNames
+#' @importFrom dplyr desc arrange
+#' @importFrom utils head tail
 NULL
 
 .readTabFiles <- function(file) {
@@ -31,7 +33,7 @@ NULL
   } else if (grepl(pattern = ".rds$", x = file)) {
     file.obj <- readRDS(file = file)
   } else {
-    stop("File format is not recognizable. Please, look at allowed data",
+    stop("File format is not recognizable. Please, look at allowed formats",
          " in ?loadSCProfiles")
   }
   return(file.obj)
@@ -138,7 +140,7 @@ NULL
       counts <- rhdf5::h5read(file = counts.file, name = name.h5)
     }
   } else {
-    stop("File format is not recognizable. Please, look at allowed data",
+    stop("File format is not recognizable. Please, look at allowed formats",
          " in ?loadSCProfiles")
   }
   return(counts)
@@ -247,8 +249,8 @@ NULL
     diff <- abs(dim(counts)[2] - length(common.cells))
     disc <- abs(length(cells.metadata[, cell.ID.column]) - length(common.cells))
     if (length(common.cells) < min(dim(counts)[2], dim(cells.metadata)[1])) {
-      stop(paste("There are", diff,
-                 "cells that don't match between count matrix and metadata"))
+      stop(paste("There are ", diff,
+                 " cells that don't match between count matrix and metadata"))
     } else if (diff != 0) { # this check includes the previous one
       warning("There are", diff, "cells that don't match between counts ", 
               "matrix and metadata")
@@ -309,6 +311,9 @@ NULL
                     "column from genes metadata will be used")) 
     } 
   }
+  ######### it is here where I can modify the behaviour of the function. Previous 
+  ### steps are kind of needed
+  
   # filter genes by min.counts and min.cells -----------------------------------
   if (!block.processing) {
     filtered.genes <- .filterGenesSparse(
@@ -389,40 +394,49 @@ NULL
 }
 
 # TODO: control what numbers can be used for min.mean.counts
-.filterGenesByCluster <- function(
-  counts, 
-  genes.metadata, 
-  cells.metadata, 
-  cell.type.column, 
-  min.mean.counts
-) {
-  ## mean counts per cluster: with big matrices, this will be problematic
-  # mean.cluster <- aggregate(
-  #   x = t(as.matrix(counts)), 
-  #   by = list(cells.metadata[[cell.type.column]]), 
-  #   FUN = mean
-  # )
-  # rownames(mean.cluster) <- mean.cluster[, 1]
-  # mean.cluster[, 1] <- NULL
-  ## this part has been changed using the same implementation as Matrix.utils
-  mean.cluster <- .aggregate.Matrix.sparse(
-    x = Matrix::t(counts), 
-    groupings = list(cells.metadata[[cell.type.column]]), 
-    fun = "mean"
-  )
-  ## using cutoffs
-  sel.genes <- unlist(
-    apply(
-      X = mean.cluster >= min.mean.counts, MARGIN = 2, 
-      FUN = function(x) if(any(x)) return(TRUE)
-    )
-  )
-  if (!any(sel.genes)) {
-    return(list(counts, genes.metadata))
-  } else {
-    return(list(counts[names(sel.genes), ], genes.metadata[names(sel.genes), ]))
-  }
-}
+# .filterGenesByCluster <- function(
+#   counts, 
+#   genes.metadata, 
+#   cells.metadata, 
+#   cell.type.column, 
+#   min.mean.counts
+# ) {
+#   ## mean counts per cluster: with big matrices, this will be problematic
+#   # mean.cluster <- aggregate(
+#   #   x = t(as.matrix(counts)), 
+#   #   by = list(cells.metadata[[cell.type.column]]), 
+#   #   FUN = mean
+#   # )
+#   # rownames(mean.cluster) <- mean.cluster[, 1]
+#   # mean.cluster[, 1] <- NULL
+#   ## this part has been changed using the same implementation as Matrix.utils
+#   mean.cluster <- round(
+#     x = .aggregate.Matrix.sparse(
+#       x = Matrix::t(counts), 
+#       groupings = list(cells.metadata[[cell.type.column]]), 
+#       fun = "mean"
+#     ), digits = 2
+#   ) 
+#   ## why this round here??
+#   ## using cutoffs
+#   sel.genes <- unlist(
+#     apply(
+#       X = mean.cluster >= min.mean.counts, 
+#       MARGIN = 2, 
+#       FUN = function(x) if(any(x)) return(TRUE)
+#     )
+#   )
+#   if (!any(sel.genes)) {
+#     return(list(counts, genes.metadata))
+#   } else {
+#     return(
+#       list(
+#         counts[names(sel.genes), ], 
+#         genes.metadata[names(sel.genes), , drop = FALSE]
+#       )
+#     )
+#   }
+# }
 
 .filterGenesSparse <- function(
   counts,
@@ -473,17 +487,17 @@ NULL
     counts <- list.data[[1]]
     genes.metadata <- list.data[[2]]
   }
-  if (filt.genes.cluster) {
-    list.data <- .filterGenesByCluster(
-      counts = counts, 
-      genes.metadata = genes.metadata, 
-      cells.metadata = cells.metadata, 
-      cell.type.column = cell.type.column, 
-      min.mean.counts = min.mean.counts
-    )
-    counts <- list.data[[1]]
-    genes.metadata <- list.data[[2]]
-  }
+  # if (filt.genes.cluster) {
+  #   list.data <- .filterGenesByCluster(
+  #     counts = counts, 
+  #     genes.metadata = genes.metadata, 
+  #     cells.metadata = cells.metadata, 
+  #     cell.type.column = cell.type.column, 
+  #     min.mean.counts = min.mean.counts
+  #   )
+  #   counts <- list.data[[1]]
+  #   genes.metadata <- list.data[[2]]
+  # }
   if (dim(counts)[1] == 0) {
     stop(paste("Resulting count matrix after filtering does not have entries"))
   }
@@ -561,26 +575,26 @@ NULL
     }
   }
   # filter genes by cluster
-  if (filt.genes.cluster) {
-    sum.cluster <- DelayedArray::rowsum(
-      x = DelayedArray::t(counts), group = factor(cells.metadata[[cell.type.column]])
-    )
-    n.cluster <- data.frame(table(cells.metadata[[cell.type.column]]))
-    mean.cluster <- sum.cluster[n.cluster$Var1,] / n.cluster$Freq
-    
-    ## using cutoffs
-    sel.genes <- unlist(
-      apply(
-        X = mean.cluster >= min.mean.counts, 
-        MARGIN = 2, 
-        FUN = function(x) if(any(x)) return(TRUE)
-      )
-    )  
-    if (any(sel.genes)) {
-      counts <- counts[names(sel.genes), ]
-      genes.metadata <- genes.metadata[names(sel.genes), ]
-    }
-  }
+  # if (filt.genes.cluster) {
+  #   sum.cluster <- DelayedArray::rowsum(
+  #     x = DelayedArray::t(counts), group = factor(cells.metadata[[cell.type.column]])
+  #   )
+  #   n.cluster <- data.frame(table(cells.metadata[[cell.type.column]]))
+  #   mean.cluster <- sum.cluster[n.cluster$Var1,] / n.cluster$Freq
+  #   
+  #   ## using cutoffs
+  #   sel.genes <- unlist(
+  #     apply(
+  #       X = mean.cluster >= min.mean.counts, 
+  #       MARGIN = 2, 
+  #       FUN = function(x) if(any(x)) return(TRUE)
+  #     )
+  #   )  
+  #   if (any(sel.genes)) {
+  #     counts <- counts[names(sel.genes), ]
+  #     genes.metadata <- genes.metadata[names(sel.genes), ]
+  #   }
+  # }
   final.features <- nrow(counts)
   if (verbose) {
     message("\n    - Filtering features:")
@@ -852,7 +866,7 @@ NULL
       list(list.st.objects[[1]][[1]]) %>% setNames(names.st.objs)
     )
   ## if n.slides == 1 but length(list.st.objects) != 1: no subset, but lapply
-  # tyo make it a list of n elements
+  # to make it a list of n elements
   } else if (n.slides == 1) {
     return(
       lapply(X = list.st.objects, FUN = function(x) x[[1]]) %>% 
@@ -982,6 +996,73 @@ NULL
   )
 }
 
+.filterGenesByCluster <- function(
+  sce.obj,
+  cell.type.column, 
+  min.mean.counts,
+  n.genes.per.cluster,
+  top.n.genes,
+  verbose
+) {
+  
+  if (is.null(names(sce.obj@assays@data))) 
+    names(sce.obj@assays@data) <- "counts"
+  
+  mean.cluster.counts <- .aggregate.Matrix.sparse(
+    x = Matrix::t(sce.obj@assays@data$counts), 
+    groupings = list(sce.obj[[cell.type.column]]), 
+    fun = "mean"
+  )
+  sel.genes <- unlist(
+    apply(
+      X = mean.cluster.counts > min.mean.counts, 
+      MARGIN = 2, 
+      FUN = function(x) if(any(x)) return(TRUE)
+    )
+  )
+  sce.obj.norm <- scuttle::computeLibraryFactors(sce.obj[names(sel.genes), ])
+  sce.obj.norm <- scuttle::logNormCounts(sce.obj.norm)
+  ## mean values
+  mean.cluster.log <- .aggregate.Matrix.sparse(
+    x = Matrix::t(sce.obj.norm@assays@data$logcounts), 
+    groupings = list(sce.obj.norm@colData[[cell.type.column]]), 
+    fun = "mean"
+  )
+  means.all <- colMeans(as.matrix(mean.cluster.log))
+  logFCs.cluster <- apply(mean.cluster.log, 1, \(x) x - means.all)
+  list.cluster.FC <- lapply(
+    as.list(as.data.frame(logFCs.cluster)), 
+    \(x) x %>% setNames(rownames(logFCs.cluster))
+  )
+  ranked.logFC.top <- lapply(
+    list.cluster.FC, 
+    \(x) {
+      x.f <- x[x > 0.5] ## only if logFC > 0.5
+      x.f[order(x.f, decreasing = T)] %>% head(n.genes.per.cluster) %>% names()
+    }
+  ) %>% unlist() %>% unique()
+  final.genes <- intersect(ranked.logFC.top, names(sel.genes))
+  
+  if (verbose) 
+    message(
+      "\n=== Number of genes after filtering based on logFC: ", length(final.genes)
+    )
+  
+  if (length(final.genes) > top.n.genes) {
+    if (verbose) 
+      message(
+        "\n=== As the number of resulting genes is greater than ",
+        "the top.n.genes parameter. Using only ", 
+        top.n.genes, " according to gene variance"
+      )
+    dec.sc.obj.ln <- scran::modelGeneVar(sce.obj.norm[final.genes, ])
+    final.genes <- as.data.frame(dec.sc.obj.ln) %>% 
+      arrange(desc(abs(.data[["bio"]]))) %>% head(top.n.genes) %>% rownames()
+  }
+  
+  return(final.genes)
+}
+
 ################################################################################
 ######################### Create a SpatialDDLS object ##########################
 ################################################################################
@@ -991,8 +1072,27 @@ NULL
 #' Create a \code{\linkS4class{SpatialDDLS}} object by providing single-cell
 #' RNA-seq data. Additionally, spatial transcriptomics data contained in
 #' \code{\linkS4class{SpatialDDLS}} objects can also be provided. It is
-#' recommended to provide both types of data to calculate the intersection of
-#' genes shared between both experiments.
+#' recommended to provide both types of data to only use genes shared between 
+#' both experiments. 
+#' 
+#' \strong{Filtering genes}
+#' 
+#' In order to reduce the number of dimensions used for subsequent steps, 
+#' \code{createSpatialDDLSobject} implements different strategies aimed at 
+#' removing useless genes for deconvolution: \itemize{ \item Filtering at the 
+#' cell level: genes less expressed than a determined cutoff in N cells are
+#' removed. See \code{sc.min.cells}/\code{st.min.cells} and 
+#' \code{sc.min.counts}/\code{st.min.cells} parameters. \item Filtering at the 
+#' cluster level (only for scRNA-seq data): if 
+#' \code{sc.filt.genes.cluster == TRUE}, \code{createSpatialDDLSobject} sets a 
+#' cutoff of non-zero average counts per 
+#' cluster (\code{sc.min.mean.counts} parameter) and take only the 
+#' \code{sc.n.genes.per.cluster} genes with the highest logFC per cluster. 
+#' LogFCs are calculated using normalized logCPM of each cluster with respect to 
+#' the average in the whole dataset). Finally, if 
+#' the number of remaining genes is greater than \code{top.n.genes}, genes are 
+#' ranked based on variance and the \code{top.n.genes} most variable genes are 
+#' used for downstream analyses.}
 #'
 #' \strong{Single-cell RNA-seq data}
 #'
@@ -1043,20 +1143,27 @@ NULL
 #' @param st.gene.ID.column Name or number of the column in the genes metadata
 #'   corresponding to the names used for features/genes (spatial transcriptomics
 #'   data).
+#' @param filter.mt.genes Regular expression matching mitochondrial genes to 
+#'   be ruled out (\code{^mt-} by default). If \code{NULL}, no filtering is 
+#'   performed. 
 #' @param sc.filt.genes.cluster Whether to filter single-cell RNA-seq genes
-#'   according to a minimum threshold of mean counts per cell type
-#'   \code{sc.min.mean.counts}.
-#' @param sc.min.mean.counts Minimum mean counts per cluster to filter genes.
-#' @param sc.filt.genes.cells Whether to filter single-cell RNA-seq genes
-#'   according to a minimum number of counts \code{sc.min.counts} in a minimum
-#'   number of cells \code{sc.min.cells}.
-#' @param sc.min.counts Minimum gene counts to filter (0 by default; single-cell
+#'   according to a minimum threshold of non-zero average counts per cell type
+#'   (\code{sc.min.mean.counts}). \code{TRUE} by default. 
+#' @param sc.min.mean.counts Minimum non-zero average counts per cluster to
+#'   filter genes. 1 by default. 
+#' @param sc.n.genes.per.cluster Top n genes with the highest logFC per cluster
+#'   (300 by default). See Details section for more details. 
+#' @param top.n.genes Maximum number of genes used for downstream steps (2000 
+#'   by default). In case the number of genes after filtering is greater than 
+#'   \code{top.n.genes}, these genes will be set according to 
+#'   variability across the whole single-cell dataset. 
+#' @param sc.min.counts Minimum gene counts to filter (1 by default; single-cell
 #'   RNA-seq data).
-#' @param sc.min.cells Minimum of cells with more than \code{min.counts} (0 by
+#' @param sc.min.cells Minimum of cells with more than \code{min.counts} (1 by
 #'   default; single-cell RNA-seq data).
-#' @param st.min.counts Minimum gene counts to filter (0 by default; spatial
+#' @param st.min.counts Minimum gene counts to filter (1 by default; spatial
 #'   transcriptomics data).
-#' @param st.min.spots Minimum of cells with more than \code{min.counts} (0 by
+#' @param st.min.spots Minimum of cells with more than \code{min.counts} (1 by
 #'   default; spatial transcriptomics data).
 #' @param st.n.slides Minimum number of slides
 #'   (\code{\linkS4class{SpatialExperiment}} objects) in which a gene has to be
@@ -1065,7 +1172,7 @@ NULL
 #'   not present in at least \code{st.n.slides} will be discarded. If no
 #'   filtering is desired, set \code{st.n.slides = 1}.
 #' @param shared.genes If set to \code{TRUE}, only genes present in both the
-#'   isngle-cell and spatial transcriptomics data will be retained for further
+#'   single-cell and spatial transcriptomics data will be retained for further
 #'   processing (\code{TRUE} by default).
 #' @param sc.name.dataset.h5 Name of the data set if HDF5 file is provided for
 #'   single-cell RNA-seq data.
@@ -1150,7 +1257,8 @@ NULL
 #'   st.data = ste,
 #'   st.spot.ID.column = "Cell_ID",
 #'   st.gene.ID.column = "Gene_ID",
-#'   project = "Simul_example"
+#'   project = "Simul_example",
+#'   sc.filt.genes.cluster = FALSE
 #' )
 #'   
 createSpatialDDLSobject <- function(
@@ -1161,13 +1269,15 @@ createSpatialDDLSobject <- function(
     st.data,
     st.spot.ID.column,
     st.gene.ID.column,
-    sc.filt.genes.cluster = FALSE,
-    sc.min.mean.counts = 0, 
-    sc.filt.genes.cells = TRUE,
-    sc.min.counts = 0,
-    sc.min.cells = 0,
-    st.min.counts = 0,
-    st.min.spots = 0,
+    filter.mt.genes = "^mt-",
+    sc.filt.genes.cluster = TRUE,
+    sc.min.mean.counts = 1, 
+    sc.n.genes.per.cluster = 300,
+    top.n.genes = 2000,
+    sc.min.counts = 1,
+    sc.min.cells = 1,
+    st.min.counts = 1,
+    st.min.spots = 1,
     st.n.slides = 3,
     shared.genes = TRUE,
     sc.name.dataset.h5 = NULL, 
@@ -1181,16 +1291,9 @@ createSpatialDDLSobject <- function(
 ) {
   if (missing(sc.cell.type.column)) sc.cell.type.column <- NULL
   # in case filtering according to expression in each cluster is used
-  if (sc.filt.genes.cluster & is.null(sc.cell.type.column)) {
-    stop(
-      paste(
-        "If genes will be filtered out according to their expression in", 
-        "each cell type (sc.filt.genes.cluster = TRUE), sc.cell.type.column",
-        "must be provided"
-      )
-    )
+  if (sc.filt.genes.cluster & (is.null(sc.cell.type.column) | missing(sc.cell.type.column))) {
+    stop("sc.cell.type.column must be provided")
   } 
-  
   ## spatial transcriptomics profiles
   if (!missing(st.data)) {
     spatial.experiments <- .loadSTData(
@@ -1213,9 +1316,9 @@ createSpatialDDLSobject <- function(
     gene.ID.column = sc.gene.ID.column,
     cell.type.column = sc.cell.type.column,
     name.dataset.h5 = sc.name.dataset.h5,
-    filt.genes.cluster = sc.filt.genes.cluster,
+    filt.genes.cluster = FALSE,
     min.mean.counts = sc.min.mean.counts,
-    filt.genes.cells = sc.filt.genes.cells,
+    filt.genes.cells = TRUE,
     min.cells = sc.min.cells,
     min.counts = sc.min.counts,
     file.backend = sc.file.backend,
@@ -1225,7 +1328,7 @@ createSpatialDDLSobject <- function(
     block.processing = sc.block.processing,
     verbose = verbose
   )
-  ## intersection between datasets
+## intersection between datasets
   if (!missing(st.data)) {
     if (shared.genes) {
       ## slide with more genes
@@ -1239,10 +1342,10 @@ createSpatialDDLSobject <- function(
           length(inter.genes) 
         )
         message(
-          "    - Original number of genes of single-cell data: ", nrow(single.cell.real) 
+          "    - Original # genes in single-cell data: ", nrow(single.cell.real) 
         )
         message(
-          "    - Original number of genes of spatial transcriptomics data (object with more genes): ", 
+          "    - Original # genes in ST data (object with the greatest # genes): ", 
           nrow(spatial.experiments[[pos.max]]) 
         )
       }
@@ -1253,6 +1356,50 @@ createSpatialDDLSobject <- function(
       )
     }
   }
+  ## take out mitochondrial genes
+  if (!is.null(filter.mt.genes)) {
+    mt.genes.sc <- grepl(
+      pattern = filter.mt.genes, x = rownames(single.cell.real), 
+      ignore.case = TRUE
+    )
+    if (sum(mt.genes.sc) > 0) {
+      if (verbose) 
+        message("\n=== Number of removed mitochondrial genes: ", sum(mt.genes.sc))
+      
+      single.cell.real <- single.cell.real[!mt.genes.sc, ]
+      
+      mt.genes.st <- grepl(
+        pattern = filter.mt.genes, x = rownames(spatial.experiments[[1]]), 
+        ignore.case = TRUE
+      )
+      spatial.experiments <- lapply(spatial.experiments, \(st) st[!mt.genes.st, ])
+    } else {
+      if (verbose) 
+        message(
+          "\n=== No mitochondrial genes were found by using ", 
+          filter.mt.genes, " as regrex"
+        ) 
+    }
+  }
+  if (sc.filt.genes.cluster) {
+    final.genes <- .filterGenesByCluster(
+      sce.obj = single.cell.real,
+      cell.type.column = sc.cell.type.column, 
+      min.mean.counts = sc.min.mean.counts,
+      n.genes.per.cluster = sc.n.genes.per.cluster,
+      top.n.genes = top.n.genes,
+      verbose = verbose
+    )  
+    spatial.experiments <- lapply(spatial.experiments, \(st) st[final.genes, ])
+    single.cell.real <- single.cell.real[final.genes, ]
+  }
+  
+  ## messages
+  if (verbose) 
+    message(
+      "\n=== Final number of dimensions for further analyses: ", 
+      nrow(single.cell.real)
+    )
   
   return(
     new(
@@ -1333,7 +1480,8 @@ createSpatialDDLSobject <- function(
 #' SDDLS <- createSpatialDDLSobject(
 #'   sc.data = sce,
 #'   sc.cell.ID.column = "Cell_ID",
-#'   sc.gene.ID.column = "Gene_ID"
+#'   sc.gene.ID.column = "Gene_ID",
+#'   sc.filt.genes.cluster = FALSE
 #' )
 #' 
 #' ## simulating a SpatialExperiment object
@@ -1355,7 +1503,7 @@ createSpatialDDLSobject <- function(
 #'   object = SDDLS,
 #'   st.data = ste,
 #'   st.spot.ID.column = "Cell_ID",
-#'   st.gene.ID.column = "Gene_ID",
+#'   st.gene.ID.column = "Gene_ID"
 #' )
 #' }
 #'   

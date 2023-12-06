@@ -51,7 +51,8 @@ SDDLS <- createSpatialDDLSobject(
   sc.gene.ID.column = "Gene_ID",
   st.data = simSpatialExperiment(n = 10),
   st.spot.ID.column = "Cell_ID",
-  st.gene.ID.column = "Gene_ID"
+  st.gene.ID.column = "Gene_ID",
+  sc.filt.genes.cluster = FALSE
 )
 SDDLS <- estimateZinbwaveParams(
   object = SDDLS,
@@ -78,12 +79,14 @@ SDDLSComp <- genMixedCellProp(
 SDDLSComp <- simMixedProfiles(SDDLSComp, verbose = FALSE)
 SDDLSComp <- trainDeconvModel(
   object = SDDLSComp,
-  batch.size = 28,
+  batch.size = 20,
   verbose = FALSE
 )
 SDDLSComp <- calculateEvalMetrics(SDDLSComp)
 SDDLSComp <- deconvSpatialDDLS(
-  SDDLSComp, simplify.set = list(CellTypesNew = c("CellType2", "CellType4"))
+  SDDLSComp, 
+  simplify.set = list(CellTypesNew = c("CellType2", "CellType4")), 
+  pca.space = FALSE
 )
 
 # plotSpatialPropAll
