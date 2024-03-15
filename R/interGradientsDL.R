@@ -154,7 +154,7 @@ interGradientsDL <- function(
   )[, rownames(metadata.prop)]
   ## normalization with logCPM (if required)
   mixing.fun <- mixed.profiles(object, type.data = "train")@metadata[["mixing.fun"]]
-  if (normalize & mixing.fun == "AddRawCount") {
+  if (normalize & (mixing.fun == "AddRawCount")) {
     data <- log2(.cpmCalculate(x = data + 1))
   }
   ## standarization
@@ -379,9 +379,15 @@ top.gradients <- function(grad, metadata, n) {
     X = colnames(metadata), \(x) {
       spots <- rownames(metadata)[metadata[, x] == 100]
       mean.grads <- base::sort(x = colMeans(grad[spots, , drop = FALSE]), decreasing = TRUE)
+      # n.abs <- ceiling(n / 2)
       return(
         list(
-          Absolute = names(head(abs(mean.grads), n = n)),
+          Absolute = unique(
+            c(
+              names(head(mean.grads, n = n)),
+              names(tail(mean.grads, n = n))
+            )
+          ),
           Positive = names(head(mean.grads, n = n)),
           Negative = names(tail(mean.grads, n = n))
         )
