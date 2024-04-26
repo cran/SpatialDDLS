@@ -586,18 +586,22 @@ barPlotCellTypes <- function(
 #' Install Python dependencies for SpatialDDLS
 #'
 #' This function facilitates the installation of the required Python
-#' dependencies for the SpatialDDLS package. It requires a Python interpreter
-#' with the TensorFlow Python library and its dependencies. It utilizes the
-#' reticulate package and the installer of the tensorflow R package to perform
-#' the installation. Conda environments will be used with the new environment
-#' being named SpatialDDLS-env. This function is intended to simplify the
-#' installation process for SpatialDDLS by automatically installing Miniconda
-#' and creating a new environment named SpatialDDLS-env. For users who wish to
-#' use a different Python or conda environment, see the tensorflow::use_condaenv
-#' function and the package vignettes for more information.
+#' dependencies for the \pkg{SpatialDDLS} R package, as it requires a Python 
+#' interpreter with the TensorFlow Python library and its dependencies. 
+#' 
+#' This function is intended to simplify the installation process for 
+#' \pkg{SpatialDDLS} by automatically installing Miniconda and creating a new 
+#' environment named SpatialDDLS-env with all \pkg{SpatialDDLS}' dependencies 
+#' covered. For users who wish to use a different Python or conda environment, 
+#' see the \code{tensorflow::use_condaenv} function for more information.
 #'
 #' @param conda Path to a conda executable. Using \code{"auto"} (by default)
 #'   allows \pkg{reticulate} to automatically find an appropriate conda binary.
+#' @param python.version Python version to be installed in the environment 
+#'   (\code{"3.8"} by default). We recommend keeping this version as it has 
+#'   been tested to be compatible with tensorflow 2.6.
+#' @param tensorflow.version Tensorflow version to be installed in the 
+#'   environment (\code{"2.6"} by default). 
 #' @param install.conda Boolean indicating if installing miniconda automatically
 #'   by using \pkg{reticulate}. If \code{TRUE}, \code{conda} argument is
 #'   ignored. \code{FALSE} by default.
@@ -619,6 +623,8 @@ barPlotCellTypes <- function(
 #' 
 installTFpython <- function(
   conda = "auto",
+  python.version = "3.8",
+  tensorflow.version = "2.6",
   install.conda = FALSE,
   miniconda.path = NULL
 ) {
@@ -647,10 +653,20 @@ installTFpython <- function(
   }
   dirConda <- reticulate::conda_binary("auto")
   message("\n=== Creating SpatialDDLS-env environment")
+  
+  ## custom versions 
+  if (python.version != "3.8" | tensorflow.version != "2.6") {
+    warning(
+      "Please, be sure the selected Python and TensorFlow versions are ", 
+      "compatible. Otherwise, miniconda will raise an error", 
+      call. = FALSE, immediate. = TRUE
+    )
+  }
+  
   status2 <- tryCatch(
     reticulate::conda_create(
       envname = "SpatialDDLS-env", 
-      packages = "python==3.7.11"
+      packages = paste0("python==", python.version)
     ), 
     error = function(e) {
       return(TRUE)
@@ -666,7 +682,7 @@ installTFpython <- function(
   message("\n=== Installing tensorflow in SpatialDDLS-env environment")
   status3 <- tryCatch(
     tensorflow::install_tensorflow(
-      version = "2.6-cpu", 
+      version = paste0(tensorflow.version, "-cpu"),
       method = "conda", 
       conda = dirConda, 
       envname = "SpatialDDLS-env"

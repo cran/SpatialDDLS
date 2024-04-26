@@ -1,6 +1,6 @@
-a404b2179a8d281132b7fdae8fdbc583 *DESCRIPTION
+ba6782aa59d3cf91229bf6110dde9d8f *DESCRIPTION
 2779dd14618c45d2eb71ed9de61236ae *NAMESPACE
-24281bace274604f456330121c347d7b *NEWS.md
+bcb7902acbf59b739de71af169fd68f7 *NEWS.md
 72e21d027fee1d5044016232dadda26a *R/AllClasses.R
 96631263c1ab21f4c53a06c13b977653 *R/AllGenerics.R
 ab8040bf614d920ea800e7dcab0d4a6e *R/SpatialDDLS.R
@@ -12,10 +12,11 @@ ab8040bf614d920ea800e7dcab0d4a6e *R/SpatialDDLS.R
 d08e990ac5cf2601eb10175c6c016a19 *R/simMixedSpots.R
 72330b9a1eda628185abab676b4f9ccd *R/simSingleCell.R
 32885c5f331665460c4a89ff22545fab *R/spatialClustering.R
-a4ccf7e8a4d8b0cc2ceb1f0401b27607 *R/utils.R
+b05dc9a29755e37e47edfe7d78fb8617 *R/utils.R
 3cb194e33169b34a79faaf7768f053f7 *README.md
 8faf250d78a120ba4c7ea2186efddd24 *build/partial.rdb
 c180ce827961e600b031e9ef5ffaff79 *build/vignette.rds
+9d21d809809ac400c2e1b5514aeb8346 *inst/CITATION
 4bcd2b156b2a11a82ec324f8360dea22 *inst/doc/realModelExample.Rmd
 8b7dec15b78c2c85ac9df37cfb618c69 *inst/doc/realModelExample.html
 d0f9f816deb9a16b06b259dbe4039aeb *man/DeconvDLModel-class.Rd
@@ -40,7 +41,7 @@ a56464e41df96380c47d38fc418c25c1 *man/figures/logo.png
 4e1e7763d7ae189669bf06fc2226e128 *man/figures/summary.png
 b6aabecc9928e8ee756386141b85171f *man/genMixedCellProp.Rd
 86ca2482c258d55a8fd9a396280b7cd6 *man/getProbMatrix.Rd
-6c8b8d69ae6e7a991f7339ef1775377a *man/installTFpython.Rd
+35b3c28c965e88c48d309e8f1d4caf10 *man/installTFpython.Rd
 6c8317742ba9bc804967cbc56d69db0e *man/interGradientsDL.Rd
 f98b2d0fe116551d70bcab44c381c573 *man/loadSTProfiles.Rd
 01b9ecdfb11472527507ce85fd48660f *man/loadTrainedModelFromH5.Rd
