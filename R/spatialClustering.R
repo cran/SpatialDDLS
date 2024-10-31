@@ -26,7 +26,7 @@
 #'
 #' @return A \code{\linkS4class{SpatialDDLS}} object containing computed 
 #'   clusters as a column in the slot \code{colData} of the 
-#'   \code{\linkS4class{SpatialExperiment}} objects. 
+#'   \code{\link[SpatialExperiment]{SpatialExperiment}} objects. 
 #'
 #' @export
 #'
@@ -176,7 +176,7 @@ spatialPropClustering <- function(
     X = index.st,
     FUN = \(st.pointer) {
       st.obj <- spatial.experiments(object, index.st = st.pointer)
-      colData(st.obj)[[paste(
+      SummarizedExperiment::colData(st.obj)[[paste(
         "Clustering", method, "k",
         ifelse(method == "graph", k.nn, k.centers), sep = "."
       )]]  <- clustering.res[[st.pointer]]
